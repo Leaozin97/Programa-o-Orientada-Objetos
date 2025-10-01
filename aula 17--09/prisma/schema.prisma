@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String    @id @default(uuid())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  email      String    @unique
+  password   String
+  name       String?
+  habits     Habit[]
+  accounts   Account[]
+  sessions   Session[]
+  // Add any other user-related fields here, like profile information
+
+  @@map("users")
+}
+
+model Habit {
+  id          String        @id @default(uuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  name        String
+  description String?       @db.Text
+  userId      String
+  user        User          @relation(fields: [userId], references: [id])
+  frequency   Frequency     @default(DAILY) // How often the habit should be completed
+  startDate   DateTime      @default(now()) // When the habit starts
+  endDate     DateTime?     // When the habit should end (optional)
+  timeOfDay   DateTime?     // Optional: Specific time of day to perform habit
+  reminders   Boolean       @default(false) // Enable/disable reminders
+  HabitRecord HabitRecord[]
+  goal        Int           @default(1) // track how many times it should be completed per frequency period
+
+  @@map("habits")
+}
+
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+  // Add custom frequencies if needed (e.g., "Every Other Day")
+}
+
+model HabitRecord {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  habitId   String
+  habit     Habit    @relation(fields: [habitId], references: [id])
+  date      DateTime @db.Date // Date the habit was completed
+  completed Boolean  @default(true)
+
+  @@unique([habitId, date]) // Prevents multiple records for the same habit on the same date
+  @@map("habit_records")
+}
+
+// Necessary for Next auth
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
